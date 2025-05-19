@@ -99,8 +99,8 @@ The application provides a consistent interface for different LLM providers thro
 Example usage:
 
 ```python
-from chat.open_ai import OpenAIProvider
-from chat.conversation import Conversation
+from chat.ai.open_ai import OpenAIProvider
+from chat.conversation.conversation import Conversation
 
 # Initialize provider
 provider = OpenAIProvider(model="gpt-4o-2024-08-06")
@@ -110,10 +110,10 @@ conversation = Conversation(id="unique-id")
 
 # Generate a completion with conversation context
 response = await provider.generate_completion(
-    prompt="Hello, how are you?",
-    output_format="text",
-    options={"temperature": 0.7},
-    conversation=conversation  # Optional: provide conversation context
+  prompt="Hello, how are you?",
+  output_format="text",
+  options={"temperature": 0.7},
+  conversation=conversation  # Optional: provide conversation context
 )
 
 # The conversation object will be automatically updated with the new message

@@ -3,7 +3,7 @@ import re
 from pathlib import Path
 from typing import Optional
 
-from chat.logging_util import logger
+from chat.util.logging_util import logger
 
 
 class JsonUtil:

@@ -4,8 +4,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Union
 
-from chat.conversation import Conversation, Message, MessageType
-from chat.logging_util import logger
+from chat.conversation.conversation import Conversation, MessageType
+from chat.util.logging_util import logger
 
 
 class ConversationStorage:

@@ -1,23 +1,13 @@
-import json # For JsonUtil
-from typing import Optional, Dict, Any
-from abc import ABC, abstractmethod # For LLMProvider ABC
-
-import jsonschema
-
-from chat.json_util import JsonUtil
-
-from chat.logging_util import logger
-
 import json
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any
 from abc import ABC, abstractmethod
 
 # Assuming jsonschema and litellm are installed
 import jsonschema
 
-from chat.json_util import JsonUtil
-from chat.conversation import Conversation, MessageType
-from chat.logging_util import logger
+from chat.util.json_util import JsonUtil
+from chat.conversation.conversation import Conversation
+from chat.util.logging_util import logger
 
 
 class LLMProvider(ABC):
