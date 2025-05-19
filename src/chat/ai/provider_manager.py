@@ -44,7 +44,7 @@ PROVIDERS = {
     "Ollama": {
         "class": OllamaProvider,
         "models": ["gemma3:27b", "qwen3:32b", "qwen:72b", "deepseek-r1:70b", "llama3.3:latest", "llama4:scout",
-                   "mistral", "mixtral", "phi3"]
+                   "mistral", "mixtral", "phi4:latest"]
     }
 }
 

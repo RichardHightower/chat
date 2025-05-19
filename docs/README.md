@@ -118,6 +118,9 @@ and Anthropic Claude.
 This application provides a flexible chat interface that can connect to multiple LLM providers (OpenAI, Anthropic Claude, 
 Google Gemini, and Perplexity) using LiteLLM. It includes conversation persistence functionality to save and load chat histories.
 
+
+![Chat App Screenshot](images/chat-app.png)
+
 ## Features
 
 - Chat with multiple LLM providers from a single interface
