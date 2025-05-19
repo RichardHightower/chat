@@ -1,11 +1,13 @@
 import os
-from typing import Optional, Dict, Any, Literal
+from typing import Optional, Dict, Any, Literal, AsyncGenerator, Callable
+import asyncio
 
 import litellm
 
 from chat.ai.llm_provider import LLMProvider
 from chat.conversation.conversation import Conversation, MessageType
 from chat.util.logging_util import logger
+from chat.util.streaming_util import stream_response
 
 
 class OpenAIProvider(LLMProvider):
@@ -330,3 +332,201 @@ class OpenAIProvider(LLMProvider):
             logger.warning(f"Invalid reasoning_effort value '{reasoning_effort_value}'. Defaulting to 'high'.")
             reasoning_effort_value = "high"
         return reasoning_effort_value  # type: ignore
+    
+    async def generate_completion_stream(
+            self,
+            prompt: str,
+            output_format: str = "text",
+            options: Optional[Dict[str, Any]] = None,
+            conversation: Optional[Conversation] = None,
+            callback: Optional[Callable[[str], None]] = None
+    ) -> AsyncGenerator[str, None]:
+        """Generate a streaming completion from OpenAI using LiteLLM."""
+        options = options or {}
+        response_format = await self._create_response_format(options, output_format)
+        
+        # Add the new user message to the conversation if provided
+        if conversation:
+            conversation.add_message(prompt, MessageType.INPUT)
+        
+        # Prepare streaming based on model type and set up async generator properly
+        if self.model.startswith("o") or self.model.startswith("gpt-4o"):
+            # Use async for to properly yield from the inner generator
+            generator = self._generate_completion_stream_o_series(prompt, response_format, options, conversation, callback)
+            async for chunk in generator:
+                yield chunk
+        else:
+            # Use async for to properly yield from the inner generator
+            generator = self._generate_completion_stream_gpt4_series(prompt, response_format, options, conversation, callback)
+            async for chunk in generator:
+                yield chunk
+    
+    async def _generate_completion_stream_gpt4_series(
+            self,
+            prompt: str,
+            response_format: Dict[str, Any],
+            options: Optional[Dict[str, Any]] = None,
+            conversation: Optional[Conversation] = None,
+            callback: Optional[Callable[[str], None]] = None
+    ) -> AsyncGenerator[str, None]:
+        """Stream completions for GPT-4 series models."""
+        options = options or {}
+        
+        if self.model.startswith("gpt-4.1"):  # Matches "gpt-4.1-2025-04-14"
+            max_tokens = options.get("max_tokens", 32768)
+        elif self.model.startswith("gpt-4o"):
+            max_tokens = options.get("max_tokens", 4096)
+        else:
+            max_tokens = options.get("max_tokens", 16384)  # Default for other gpt-4
+            
+        temperature = options.get("temperature", 0.5)
+        reasoning_effort = self.get_reasoning_effort(options)
+        system_prompt = options.get("system_prompt",
+                                   "You are a helpful assistant specializing in technical writing and software engineering.")
+        
+        logger.info(f"Starting streaming request to GPT-4 series model: {self.model}")
+        
+        # Prepare messages
+        if conversation and conversation.messages:
+            # Convert conversation history to messages format
+            messages = conversation.to_llm_messages()
+            
+            # Add the new prompt as a user message if not already present
+            if not (messages and messages[-1]["role"] == "user" and messages[-1]["content"] == prompt):
+                messages.append({"role": "user", "content": prompt})
+            
+            # Ensure the system prompt is set
+            if not any(msg["role"] == "system" for msg in messages):
+                messages.insert(0, {"role": "system", "content": system_prompt})
+        else:
+            # Standard message format without conversation history
+            messages = [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": prompt}
+            ]
+            
+        # Set up streaming options - don't include response_format directly
+        stream_options = {
+            "model": self.model,
+            "max_tokens": max_tokens,
+            "temperature": temperature
+        }
+        
+        # Handle response format differently for streaming
+        if response_format:
+            if response_format.get("type") == "json_object":
+                stream_options["response_format"] = {"type": "json_object"}
+        
+        # Add reasoning effort if supported
+        if self._supports_reasoning_effort(self.model) and not self.model.startswith("gpt-4o"):
+            stream_options["reasoning_effort"] = reasoning_effort
+        
+        logger.info(f"Using {len(messages)} messages in conversation history for streaming")
+        
+        try:
+            full_response = ""
+            # Use the streaming utility with LiteLLM
+            async for chunk in stream_response(
+                client=self.client,
+                messages=messages,
+                stream_options=stream_options,
+                callback=callback
+            ):
+                full_response += chunk
+                yield chunk
+            
+            # Update conversation with complete response
+            if conversation and full_response:
+                conversation.add_message(full_response, MessageType.OUTPUT)
+                
+        except Exception as e:
+            error_msg = f"Error generating streaming completion from OpenAI GPT-4 series: {e}"
+            logger.error(error_msg, exc_info=True)
+            if callback:
+                callback(f"\nError: {str(e)}")
+            yield f"\nError: {str(e)}"
+    
+    async def _generate_completion_stream_o_series(
+            self,
+            prompt: str,
+            response_format: Dict[str, Any],
+            options: Optional[Dict[str, Any]] = None,
+            conversation: Optional[Conversation] = None,
+            callback: Optional[Callable[[str], None]] = None
+    ) -> AsyncGenerator[str, None]:
+        """Stream completions for O-series models."""
+        options = options or {}
+        
+        if self.model.startswith("gpt-4o"):
+            max_completion_tokens = options.get("max_completion_tokens", options.get("max_tokens", 16384))
+        else:
+            max_completion_tokens = options.get("max_completion_tokens", options.get("max_tokens", 100000))
+            
+        reasoning_effort = self.get_reasoning_effort(options)
+        system_prompt = options.get("system_prompt",
+                                    "You are a helpful assistant specializing in technical writing and software engineering.")
+        
+        logger.info(f"Starting streaming request to O-series model: {self.model}")
+        
+        # Prepare messages
+        if conversation and conversation.messages:
+            # Convert conversation history to messages format
+            messages = conversation.to_llm_messages()
+            
+            # Add the new prompt as a user message if not already present
+            if not (messages and messages[-1]["role"] == "user" and messages[-1]["content"] == prompt):
+                messages.append({"role": "user", "content": prompt})
+            
+            # Ensure the system prompt is set
+            if not any(msg["role"] == "system" for msg in messages):
+                messages.insert(0, {"role": "system", "content": system_prompt})
+        else:
+            # Standard message format without conversation history
+            messages = [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": prompt}
+            ]
+            
+        # Set up streaming options - don't include response_format directly
+        stream_options = {
+            "model": self.model,
+            "max_tokens": max_completion_tokens,
+            "temperature": 1.0  # O-series only supports temperature=1.0
+        }
+        
+        # Handle response format differently for streaming
+        if response_format:
+            if response_format.get("type") == "json_object":
+                stream_options["response_format"] = {"type": "json_object"}
+        
+        # Add reasoning effort if supported (note: not supported for streaming with gpt-4o)
+        if self._supports_reasoning_effort(self.model) and not self.model.startswith("gpt-4o"):
+            stream_options["reasoning_effort"] = reasoning_effort
+        elif self._supports_reasoning_effort(self.model):
+            logger.info(f"Skipping reasoning_effort parameter for {self.model} as it's not supported in streaming mode")
+            
+        logger.info(f"Using {len(messages)} messages in conversation history for streaming")
+        logger.info(f"Using temperature=1.0 for O-series model (only supported value)")
+        
+        try:
+            full_response = ""
+            # Use the streaming utility with LiteLLM
+            async for chunk in stream_response(
+                client=self.client,
+                messages=messages,
+                stream_options=stream_options,
+                callback=callback
+            ):
+                full_response += chunk
+                yield chunk
+            
+            # Update conversation with complete response
+            if conversation and full_response:
+                conversation.add_message(full_response, MessageType.OUTPUT)
+                
+        except Exception as e:
+            error_msg = f"Error generating streaming completion from OpenAI O-series: {e}"
+            logger.error(error_msg, exc_info=True)
+            if callback:
+                callback(f"\nError: {str(e)}")
+            yield f"\nError: {str(e)}"
