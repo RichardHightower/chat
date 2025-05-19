@@ -1,0 +1,22 @@
+[project]
+name = "chat-app"
+version = "0.1.0"
+description = "A Streamlit chat app using LiteLLM and OpenAI"
+authors = [
+    {name = "Rick Hightower",email = "richardhightower@gmail.com"}
+]
+readme = "docs/README.md"
+requires-python = "^3.12"
+dependencies = [
+    "streamlit (>=1.45.1,<2.0.0)",
+    "litellm (>=1.70.0,<2.0.0)",
+    "python-dotenv (>=1.1.0,<2.0.0)"
+]
+
+[[tool.poetry.packages]]
+include = "chat"
+from = "src"
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
