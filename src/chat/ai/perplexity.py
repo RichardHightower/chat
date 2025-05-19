@@ -3,9 +3,9 @@ from typing import Optional, Dict, Any
 
 import litellm
 
-from chat.llm_provider import LLMProvider
-from chat.conversation import Conversation, MessageType
-from chat.logging_util import logger
+from chat.ai.llm_provider import LLMProvider
+from chat.conversation.conversation import Conversation, MessageType
+from chat.util.logging_util import logger
 
 
 class PerplexityProvider(LLMProvider):
