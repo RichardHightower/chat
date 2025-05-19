@@ -17,6 +17,7 @@ class AnthropicProvider(LLMProvider):
             raise ValueError("Anthropic API key is required. Set it in .env or as an environment variable.")
 
         self.model = model
+        self.original_model_name = model
 
         # Use LiteLLM's model naming convention for Anthropic
         if not self.model.startswith("anthropic/"):
@@ -40,12 +41,21 @@ class AnthropicProvider(LLMProvider):
     ) -> str:
         """Generate a completion from Claude using LiteLLM."""
         options = options or {}
-        max_tokens = options.get("max_tokens", 64000)
+        
+        # Set appropriate max_tokens based on the model
+        if "haiku" in self.original_model_name.lower():
+            default_max_tokens = 8000  # Slightly below the 8192 limit for safety
+        elif "sonnet" in self.original_model_name.lower():
+            default_max_tokens = 32000
+        else:  # opus or other models
+            default_max_tokens = 64000
+            
+        max_tokens = options.get("max_tokens", default_max_tokens)
         temperature = options.get("temperature", 0.7)
         system_prompt = options.get("system_prompt",
                                     "You are a helpful assistant specializing in providing accurate and relevant information.")
 
-        logger.info(f"Sending request to Claude with model: {self.model}")
+        logger.info(f"Sending request to Claude with model: {self.model}, max_tokens: {max_tokens}")
 
         try:
             # Determine message format based on conversation history
