@@ -10,6 +10,7 @@ from chat.ai.open_ai import OpenAIProvider
 from chat.ai.google_gemini import GoogleGeminiProvider
 from chat.ai.perplexity import PerplexityProvider
 from chat.ai.anthropic import AnthropicProvider
+from chat.ai.ollama import OllamaProvider
 from chat.ai.llm_provider import LLMProvider
 from chat.util.logging_util import logger as llm_logger
 
@@ -39,6 +40,11 @@ PROVIDERS = {
         "class": AnthropicProvider,
         "models": ["claude-3-7-sonnet-latest",
                    "claude-3-5-haiku-latest", "claude-3-opus-latest"]
+    },
+    "Ollama": {
+        "class": OllamaProvider,
+        "models": ["gemma3:27b", "qwen3:32b", "qwen:72b", "deepseek-r1:70b", "llama3.3:latest", "llama4:scout",
+                   "mistral", "mixtral", "phi4:latest"]
     }
 }
 
@@ -46,11 +52,11 @@ PROVIDERS = {
 def initialize_provider(provider_name: str, model_name: str) -> Tuple[Optional[LLMProvider], Optional[str]]:
     """
     Initialize an LLM provider with the specified model.
-    
+
     Args:
         provider_name: Name of the provider to initialize
         model_name: Name of the model to use
-        
+
     Returns:
         Tuple containing (provider_instance, error_message)
         If initialization is successful, error_message will be None
@@ -59,18 +65,18 @@ def initialize_provider(provider_name: str, model_name: str) -> Tuple[Optional[L
     try:
         # Get the provider class from the PROVIDERS dictionary
         provider_class = PROVIDERS[provider_name]["class"]
-        
+
         # Initialize the provider with the selected model
         provider_instance = provider_class(model=model_name)
-        
+
         llm_logger.info(f"Provider initialized: {provider_name} with model: {model_name}")
         return provider_instance, None
-        
+
     except ValueError as e:
         error_message = f"Error initializing provider: {e}"
         llm_logger.error(error_message)
         return None, error_message
-        
+
     except Exception as e:
         error_message = f"An unexpected error occurred during provider initialization: {e}"
         llm_logger.error(error_message, exc_info=True)
@@ -80,7 +86,7 @@ def initialize_provider(provider_name: str, model_name: str) -> Tuple[Optional[L
 def get_available_providers() -> Dict[str, Dict[str, Any]]:
     """
     Get the dictionary of available providers and their models.
-    
+
     Returns:
         Dictionary of providers and their configuration
     """

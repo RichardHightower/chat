@@ -1,9 +1,125 @@
+# Multi-Provider Chat Application
+
+A Streamlit-based chat application that supports multiple LLM providers, including OpenAI, Anthropic, Google Gemini, Perplexity, and now Ollama for local model inference.
+
+## Features
+
+- Multi-provider support (OpenAI, Anthropic, Google Gemini, Perplexity, Ollama)
+- Conversation management (save, load, export)
+- Temperature control
+- Conversation context maintenance
+- Responsive UI with Streamlit
+
+## Setup and Installation
+
+### Prerequisites
+
+- Python 3.12 or later
+- Poetry (for dependency management)
+
+### Installation
+
+1. Clone the repository
+2. Install dependencies with Poetry:
+
+```bash
+poetry install
+```
+
+### API Keys
+
+Create a `.env` file in the project root with the following variables:
+
+```
+OPENAI_API_KEY=your_openai_key
+ANTHROPIC_API_KEY=your_anthropic_key
+GOOGLE_API_KEY=your_google_key
+PERPLEXITY_API_KEY=your_perplexity_key
+CONVERSATION_STORAGE_DIR=conversations
+```
+
+## Running the Application
+
+```bash
+poetry run streamlit run src/chat/app.py
+```
+
+## Using Ollama with the Chat App
+
+### Installing Ollama
+
+1. Install Ollama from [ollama.ai](https://ollama.ai)
+2. Start the Ollama server
+
+### Installed Models
+
+Your system has these powerful models installed:
+
+```
+gemma3:27b         - Google's 27B parameter model
+qwen3:32b          - Alibaba's newer 32B parameter model
+qwen:72b           - Alibaba's 72B parameter multilingual model
+deepseek-r1:70b    - 70B parameter specialized reasoning model
+llama3.3:latest    - Meta's Llama 3.3 model
+llama4:scout       - Meta's newest Llama 4 Scout model
+```
+
+To install additional models:
+
+```bash
+# Pull additional models as needed
+ollama pull mistral
+ollama pull mixtral
+ollama pull phi3
+```
+
+### Using Ollama in the Chat App
+
+1. Start the chat application
+2. In the sidebar, select "Ollama" as the provider
+3. Choose your desired model from the dropdown
+4. Verify the Ollama base URL (default: http://localhost:11434)
+5. Click "Check Ollama Status" to ensure connectivity
+
+## Model Capabilities
+
+Here's what to expect from each of your installed Ollama models:
+
+- **gemma3:27b**: Google's large 27B parameter model with excellent instruction following and reasoning
+- **qwen3:32b**: Alibaba's newer 32B parameter model with improved capabilities over earlier versions
+- **qwen:72b**: Alibaba's powerful 72B parameter model with strong multilingual capabilities
+- **deepseek-r1:70b**: A 70B parameter model specialized for enhanced reasoning and problem-solving
+- **llama3.3:latest**: Meta's Llama 3.3 model with improved capabilities over previous versions
+- **llama4:scout**: Meta's newest model, part of the Llama 4 family, optimized for efficiency and performance
+
+## Using Different Providers
+
+The application supports multiple LLM providers:
+
+- **OpenAI**: Powerful models like GPT-4o
+- **Google Gemini**: Google's latest large language models
+- **Anthropic**: Claude models with strong reasoning
+- **Perplexity**: Research-focused models with web search capabilities
+- **Ollama**: Local inference with open-source models
+
+Select the provider and model in the sidebar to switch between them.
+
+## Notes
+
+- For large local models, ensure your system has sufficient RAM
+- The first request to Ollama may take longer as the model is loaded into memory
+- Adjust the temperature to control response creativity (lower for more deterministic answers)
+
+
 # Multi-Provider Chat App
 
 A Streamlit-based chat application that supports multiple LLM providers including OpenAI, Google Gemini, Perplexity, 
 and Anthropic Claude.
 This application provides a flexible chat interface that can connect to multiple LLM providers (OpenAI, Anthropic Claude, 
 Google Gemini, and Perplexity) using LiteLLM. It includes conversation persistence functionality to save and load chat histories.
+
+
+![Chat App Screenshot](images/chat-app.png)
 
 ## Features
 
