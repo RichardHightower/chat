@@ -80,9 +80,10 @@ def handle_user_input(
         maintain_context = st.session_state.get("maintain_context", True)
         active_conversation = conversation if maintain_context else None
         
-        # Check if we should use streaming mode for any provider that supports it
+        # Check if we should use streaming mode
         should_stream = (use_streaming and 
-                         hasattr(llm_provider, 'generate_completion_stream'))
+                         hasattr(llm_provider, 'generate_completion_stream') and 
+                         selected_provider == "Anthropic")
         
         # Handle streaming separately (it creates its own chat message context)
         if should_stream:

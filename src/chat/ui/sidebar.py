@@ -17,7 +17,7 @@ from chat.conversation.conversation_storage import ConversationStorage
 from chat.util.logging_util import logger as llm_logger
 
 
-def render_provider_settings(providers: Dict[str, Dict[str, Any]]) -> Tuple[str, str, float]:
+def render_provider_settings(providers: Dict[str, Dict[str, Any]]) -> Tuple[str, str, float, bool]:
     """
     Render the provider settings section in the sidebar.
     
@@ -25,7 +25,7 @@ def render_provider_settings(providers: Dict[str, Dict[str, Any]]) -> Tuple[str,
         providers: Dictionary of available providers and their models
         
     Returns:
-        Tuple containing (selected_provider, selected_model, temperature)
+        Tuple containing (selected_provider, selected_model, temperature, use_streaming)
     """
     st.header("Provider Settings")
     
@@ -39,11 +39,17 @@ def render_provider_settings(providers: Dict[str, Dict[str, Any]]) -> Tuple[str,
     # Temperature slider
     temperature = st.slider("Temperature", min_value=0.0, max_value=1.0, value=0.7, step=0.1)
     
+    # Streaming option - default to enabled for all providers
+    # All providers now support streaming
+    use_streaming = st.checkbox("Enable streaming responses", 
+                              value=True,
+                              help="When enabled, responses will stream in real-time instead of waiting for the complete response.")
+    
     # Provider-specific settings
     if selected_provider == "Ollama":
         render_ollama_settings(selected_model)
 
-    return selected_provider, selected_model, temperature
+    return selected_provider, selected_model, temperature, use_streaming
 
 
 def render_ollama_settings(selected_model: str = ""):

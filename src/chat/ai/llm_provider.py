@@ -1,5 +1,5 @@
 import json
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, AsyncGenerator, Callable
 from abc import ABC, abstractmethod
 
 # Assuming jsonschema and litellm are installed
@@ -35,6 +35,32 @@ class LLMProvider(ABC):
         """
         pass
 
+    async def generate_completion_stream(
+            self,
+            prompt: str,
+            output_format: str = "text",
+            options: Optional[Dict[str, Any]] = None,
+            conversation: Optional[Conversation] = None,
+            callback: Optional[Callable[[str], None]] = None
+    ) -> AsyncGenerator[str, None]:
+        """
+        Generate a streaming completion from the LLM for the given prompt.
+        
+        Note: This method should be implemented by providers that support streaming.
+        The default implementation raises NotImplementedError.
+
+        Args:
+            prompt: The user's input prompt
+            output_format: The desired output format (text or json)
+            options: Additional options for the completion
+            conversation: Optional conversation history to provide context
+            callback: Optional callback function to update UI with each chunk
+
+        Yields:
+            Text chunks as they become available
+        """
+        raise NotImplementedError("This provider does not support streaming completions")
+        
     async def generate_json(
             self,
             prompt: str,

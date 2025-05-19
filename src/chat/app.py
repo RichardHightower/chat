@@ -72,7 +72,7 @@ def main():
     # Render sidebar components
     with st.sidebar:
         # Provider settings
-        selected_provider, selected_model, temperature = render_provider_settings(providers)
+        selected_provider, selected_model, temperature, use_streaming = render_provider_settings(providers)
         
         # Conversation management
         render_conversation_management(conversation_storage, selected_provider, selected_model)
@@ -102,7 +102,8 @@ def main():
         conversation_storage=conversation_storage,
         selected_provider=selected_provider,
         selected_model=selected_model,
-        temperature=temperature
+        temperature=temperature,
+        use_streaming=use_streaming
     )
     
     # Render current conversation details in sidebar

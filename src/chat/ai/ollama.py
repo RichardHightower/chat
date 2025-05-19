@@ -1,11 +1,13 @@
 import os
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, AsyncGenerator, Callable
+import asyncio
 
 import litellm
 
 from chat.ai.llm_provider import LLMProvider
 from chat.conversation.conversation import Conversation, MessageType
 from chat.util.logging_util import logger
+from chat.util.streaming_util import stream_response
 
 
 class OllamaProvider(LLMProvider):
@@ -165,3 +167,123 @@ class OllamaProvider(LLMProvider):
     ) -> Dict[str, Any]:
         """Generate a JSON response from Ollama using the parent class implementation."""
         return await super().generate_json(prompt, schema, options, conversation)
+        
+    async def generate_completion_stream(
+            self,
+            prompt: str,
+            output_format: str = "text",
+            options: Optional[Dict[str, Any]] = None,
+            conversation: Optional[Conversation] = None,
+            callback: Optional[Callable[[str], None]] = None
+    ) -> AsyncGenerator[str, None]:
+        """Generate a streaming completion from Ollama using LiteLLM."""
+        options = options or {}
+
+        # Adjust parameters based on model size and type
+        if "70b" in self.original_model_name or "72b" in self.original_model_name:
+            default_max_tokens = 2048  # Most conservative for the largest models
+        elif "27b" in self.original_model_name or "32b" in self.original_model_name:
+            default_max_tokens = 2560  # Conservative for medium-large models
+        elif "llama4:scout" in self.original_model_name:
+            default_max_tokens = 4096  # Scout should be efficient enough for this
+        else:
+            default_max_tokens = 4096  # Standard value for smaller models
+
+        max_tokens = options.get("max_tokens", default_max_tokens)
+        temperature = options.get("temperature", 0.7)
+        system_prompt = options.get("system_prompt",
+                                   "You are a helpful assistant specializing in providing accurate and relevant information.")
+
+        logger.info(f"Starting streaming request to Ollama with model: {self.model}")
+
+        # Convert conversation history to messages format expected by the LLM
+        if conversation and conversation.messages:
+            # Add the new prompt if it's not already the last user message
+            messages = conversation.to_llm_messages()
+
+            # Ensure a system message exists at the beginning
+            if not any(msg["role"] == "system" for msg in messages):
+                messages.insert(0, {"role": "system", "content": system_prompt})
+
+            # Add the new prompt if it's not already the last user message
+            if not (messages and messages[-1]["role"] == "user" and messages[-1]["content"] == prompt):
+                messages.append({"role": "user", "content": prompt})
+        else:
+            # Standard message format without conversation history
+            messages = [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": prompt}
+            ]
+
+        logger.info(f"Using {len(messages)} messages in conversation history for streaming")
+
+        # For very large models, we might need to limit context size
+        if len(messages) > 10:
+            if "70b" in self.original_model_name or "72b" in self.original_model_name:
+                logger.info(f"Trimming conversation history for large model ({self.original_model_name})")
+                # Keep system message and most recent messages
+                messages = [messages[0]] + messages[-7:]  # More aggressive trimming for largest models
+            elif "27b" in self.original_model_name or "32b" in self.original_model_name:
+                logger.info(f"Trimming conversation history for medium-large model ({self.original_model_name})")
+                # Keep system message and most recent messages
+                messages = [messages[0]] + messages[-9:]  # Less aggressive trimming
+
+        # Set up streaming options
+        stream_options = {
+            "model": self.model,
+            "max_tokens": max_tokens,
+            "temperature": temperature
+        }
+        
+        # Add stop sequences if provided
+        if "stop_sequences" in options and options["stop_sequences"]:
+            stream_options["stop"] = options["stop_sequences"]
+            
+        # Get context window size if set in session state
+        import streamlit as st
+        if "ollama_context_size" in st.session_state and (
+                "70b" in self.original_model_name or
+                "72b" in self.original_model_name or
+                "27b" in self.original_model_name or
+                "32b" in self.original_model_name
+        ):
+            # Adjust max_tokens based on user-set context size
+            stream_options["max_tokens"] = min(max_tokens, st.session_state.ollama_context_size)
+            logger.info(f"Using user-defined context size: {stream_options['max_tokens']}")
+            
+        try:
+            full_response = ""
+            # Use the streaming utility with LiteLLM
+            async for chunk in stream_response(
+                client=self.client,
+                messages=messages,
+                stream_options=stream_options,
+                callback=callback
+            ):
+                full_response += chunk
+                yield chunk
+            
+            # Update conversation with complete response
+            if conversation and full_response:
+                conversation.add_message(full_response, MessageType.OUTPUT)
+                
+        except Exception as e:
+            error_msg = f"Error generating streaming completion from Ollama: {e}"
+            logger.error(error_msg, exc_info=True)
+            
+            # Provide specific error messages based on the exception
+            error_response = None
+            if "connection" in str(e).lower() and "refused" in str(e).lower():
+                error_response = "Error: Could not connect to Ollama server. Please ensure Ollama is running and the base URL is correct."
+            elif "model not found" in str(e).lower():
+                error_response = f"Error: Model '{self.original_model_name}' not found. Please make sure you've pulled this model using 'ollama pull {self.original_model_name}'."
+            elif "timeout" in str(e).lower():
+                error_response = f"Error: Request timed out. The model '{self.original_model_name}' might be loading or require more resources than available."
+            elif "out of memory" in str(e).lower() or "oom" in str(e).lower():
+                error_response = f"Error: Out of memory error. The model '{self.original_model_name}' requires more RAM than currently available. Try reducing the context size in the settings."
+            else:
+                error_response = f"Error: {str(e)}"
+                
+            if callback:
+                callback(f"\n{error_response}")
+            yield f"\n{error_response}"
