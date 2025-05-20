@@ -11,6 +11,7 @@ from chat.ai.google_gemini import GoogleGeminiProvider
 from chat.ai.perplexity import PerplexityProvider
 from chat.ai.anthropic import AnthropicProvider
 from chat.ai.ollama import OllamaProvider
+from chat.ai.bedrock import BedrockProvider
 from chat.ai.llm_provider import LLMProvider
 from chat.util.logging_util import logger as llm_logger
 
@@ -45,6 +46,18 @@ PROVIDERS = {
         "class": OllamaProvider,
         "models": ["gemma3:27b", "qwen3:32b", "qwen:72b", "deepseek-r1:70b", "llama3.3:latest", "llama4:scout",
                    "mistral", "mixtral", "phi4:latest"]
+    },
+    "AWS Bedrock": {
+        "class": BedrockProvider,
+        "models": [
+                    # Claude models with on-demand throughput support
+                    "anthropic.claude-3-7-sonnet-20250219-v1:0",
+                    "mistral.mistral-7b-instruct-v0:2",
+                    "mistral.mixtral-8x7b-instruct-v0:1",
+                    "mistral.mistral-large-2402-v1:0",
+                    "cohere.embed-multilingual-v3",
+                    "amazon.titan-embed-text-v2:0"
+                   ]
     }
 }
 
