@@ -4,6 +4,7 @@ Chat UI components for the chat application.
 This module contains functions for rendering the chat UI components
 including message display, input handling, and response generation.
 """
+import logging
 
 import streamlit as st
 import asyncio
@@ -14,6 +15,7 @@ from chat.conversation.conversation_storage import ConversationStorage
 from chat.ai.llm_provider import LLMProvider
 from chat.util.logging_util import logger as llm_logger
 from chat.ui.chat_utils import handle_message_with_streaming
+from chat.rag.rag_chat import get_rag_context_for_prompt, format_rag_response
 
 
 def display_chat_messages(messages: List[Dict[str, str]]) -> None:
@@ -57,6 +59,20 @@ def handle_user_input(
         st.session_state.messages.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
             st.markdown(prompt)
+
+        logging.info(f"PROMPT: {prompt}")
+        # Check for RAG context
+        enhanced_prompt = get_rag_context_for_prompt(prompt)
+        logging.info(f"ENHANCED_PROMPT: {enhanced_prompt}")
+
+
+        # Use enhanced prompt if available, otherwise use original prompt
+        final_prompt = enhanced_prompt if enhanced_prompt else prompt
+
+        # If RAG is enabled and enhanced prompt is available, indicate that RAG is being used
+        if enhanced_prompt:
+            with st.chat_message("system"):
+                st.info("Using document context to enhance response...")
         
         # Generate and display assistant's response
         if not llm_provider:
@@ -92,7 +108,7 @@ def handle_user_input(
                 # Handle streaming
                 handle_message_with_streaming(
                     provider=llm_provider,
-                    prompt=prompt,
+                    prompt=final_prompt,
                     conversation=active_conversation,
                     conversation_storage=conversation_storage,
                     options=generation_options
@@ -114,7 +130,7 @@ def handle_user_input(
                     # Use standard non-streaming approach
                     full_response_content = asyncio.run(
                         llm_provider.generate_completion(
-                            prompt=prompt,
+                            prompt=final_prompt,
                             output_format="text",
                             options=generation_options,
                             conversation=active_conversation
@@ -127,6 +143,10 @@ def handle_user_input(
                     if not full_response_content:
                         full_response_content = "I received an empty response. Could you try rephrasing?"
                         llm_logger.warning("LLM returned an empty response.")
+
+                    # Format response to highlight citations if RAG was used
+                    if enhanced_prompt:
+                        full_response_content = format_rag_response(full_response_content)
                     
                     # Display the response
                     message_placeholder.markdown(full_response_content)
@@ -165,7 +185,6 @@ def handle_user_input(
                     llm_logger.error(error_msg, exc_info=True)
                     message_placeholder.error(error_msg)
                     st.session_state.messages.append({"role": "assistant", "content": "I ran into an unexpected problem trying to respond."})
-
 
 def initialize_chat_history(selected_provider: str, selected_model: str) -> None:
     """

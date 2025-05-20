@@ -56,3 +56,5 @@ litellm_logs/
 
 .pmarkdownc/
 project_structure*.md
+
+db/data
