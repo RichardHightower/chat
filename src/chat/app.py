@@ -62,39 +62,64 @@ def main():
     # Setup environment and page
     setup_environment()
     setup_page()
-    
+
     # Get available providers
     providers = get_available_providers()
-    
+
     # Get conversation storage
     conversation_storage = get_conversation_storage()
-    
-    # Render sidebar components
-    with st.sidebar:
+
+    # Create tabs in the sidebar
+    sidebar_tabs = st.sidebar.tabs(["Chat Settings", "RAG"])
+
+    from chat.rag.torch_fix import apply_torch_fix
+    apply_torch_fix()
+
+    # Initialize RAG service if not already done
+    if "rag_service" not in st.session_state:
+        try:
+            from chat.rag.rag_service import RAGService
+            st.session_state.rag_service = RAGService()
+        except Exception as e:
+            st.sidebar.error(f"Error initializing RAG service: {str(e)}")
+            st.session_state.rag_service = None
+            st.session_state.rag_enabled = False
+
+    # Render standard sidebar components in the Chat Settings tab
+    with sidebar_tabs[0]:
         # Provider settings
         selected_provider, selected_model, temperature, use_streaming = render_provider_settings(providers)
-        
+
         # Conversation management
         render_conversation_management(conversation_storage, selected_provider, selected_model)
-    
-    # Initialize provider
+
+        # Current conversation details
+        render_current_conversation_details(conversation_storage, selected_provider, selected_model)
+
+    # Render RAG sidebar components in the RAG tab
+    with sidebar_tabs[1]:
+        # Import and use the RAG sidebar
+        from chat.ui.sidebar_rag import render_rag_sidebar
+        render_rag_sidebar()
+
+    # Initialize provider (using selections from first tab)
     llm_provider, error_message = initialize_provider(selected_provider, selected_model)
-    
+
     # Display error message if provider initialization failed
     if error_message:
         st.error(error_message)
         st.sidebar.error(f"Provider failed: {error_message}")
-    
+
     # Initialize chat history
     initialize_chat_history(selected_provider, selected_model)
-    
+
     # Initialize conversation
     initialize_conversation_id()
     conversation = get_conversation(conversation_storage)
-    
+
     # Display existing chat messages
     display_chat_messages(st.session_state.messages)
-    
+
     # Handle user input
     handle_user_input(
         llm_provider=llm_provider,
@@ -105,11 +130,6 @@ def main():
         temperature=temperature,
         use_streaming=use_streaming
     )
-    
-    # Render current conversation details in sidebar
-    with st.sidebar:
-        render_current_conversation_details(conversation_storage, selected_provider, selected_model)
-
 
 if __name__ == "__main__":
     main()
