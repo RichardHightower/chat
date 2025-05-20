@@ -48,8 +48,134 @@ def render_provider_settings(providers: Dict[str, Dict[str, Any]]) -> Tuple[str,
     # Provider-specific settings
     if selected_provider == "Ollama":
         render_ollama_settings(selected_model)
+    elif selected_provider == "AWS Bedrock":
+        render_bedrock_settings()
 
     return selected_provider, selected_model, temperature, use_streaming
+
+
+def render_bedrock_settings():
+    """Render AWS Bedrock-specific settings."""
+    st.subheader("AWS Bedrock Settings")
+    
+    # Get current AWS settings from environment variables
+    current_region = os.environ.get("AWS_REGION", "us-east-1")
+    
+    # Allow the user to select a region
+    aws_regions = [
+        "us-east-1", "us-east-2", "us-west-1", "us-west-2", 
+        "eu-west-1", "eu-central-1", "ap-northeast-1", "ap-southeast-1", 
+        "ap-southeast-2", "ap-south-1"
+    ]
+    
+    selected_region = st.selectbox("AWS Region", aws_regions, 
+                                  index=aws_regions.index(current_region) if current_region in aws_regions else 0)
+    
+    # Update the environment variable if it has changed
+    if selected_region != current_region:
+        os.environ["AWS_REGION"] = selected_region
+        llm_logger.info(f"Updated AWS Region to: {selected_region}")
+    
+    # Check AWS credentials
+    aws_access_key = os.environ.get("AWS_ACCESS_KEY_ID", "")
+    aws_secret_key = os.environ.get("AWS_SECRET_ACCESS_KEY", "")
+    aws_session_token = os.environ.get("AWS_SESSION_TOKEN", "")
+    
+    if not aws_access_key or not aws_secret_key:
+        st.warning("⚠️ AWS credentials not configured. Please add AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY to your .env file.")
+    else:
+        # Show masked credentials
+        st.success("✅ AWS credentials configured")
+        st.text(f"Access Key ID: {aws_access_key[:4]}...{aws_access_key[-4:] if len(aws_access_key) > 8 else ''}")
+        
+        # Show session token info if present
+        if aws_session_token:
+            st.info("🔑 Using temporary credentials with session token")
+            # Show a very short preview of the token for confirmation
+            token_preview = aws_session_token[:4] + "..." + aws_session_token[-4:] if len(aws_session_token) > 8 else ""
+            st.text(f"Session Token: {token_preview}")
+        
+    # Add a button to check available models
+    if st.button("Check Available Bedrock Models"):
+        try:
+            import boto3
+            
+            # Create a Bedrock client
+            bedrock_service_client = boto3.client(
+                "bedrock",
+                region_name=selected_region,
+                aws_access_key_id=aws_access_key,
+                aws_secret_access_key=aws_secret_key,
+                **({"aws_session_token": aws_session_token} if aws_session_token else {})
+            )
+            
+            try:
+                # Try to list models
+                response = bedrock_service_client.list_foundation_models()
+                accessible_models = [model["modelId"] for model in response.get("modelSummaries", [])]
+                
+                if accessible_models:
+                    st.success(f"✅ Found {len(accessible_models)} accessible models in your AWS account")
+                    
+                    # Display models by provider
+                    provider_models = {}
+                    for model_id in accessible_models:
+                        provider = model_id.split(".")[0] if "." in model_id else "other"
+                        if provider not in provider_models:
+                            provider_models[provider] = []
+                        provider_models[provider].append(model_id)
+                    
+                    for provider, models in provider_models.items():
+                        with st.expander(f"{provider.capitalize()} Models ({len(models)})"):
+                            st.write("\n".join([f"- `{model}`" for model in models]))
+                else:
+                    st.warning("No models found. You need to request access to models in the AWS Bedrock console.")
+            
+            except Exception as e:
+                if "AccessDeniedException" in str(e):
+                    st.error("Access denied. Your IAM user/role needs 'bedrock:ListFoundationModels' permission.")
+                else:
+                    st.error(f"Error listing models: {str(e)}")
+                    
+        except Exception as e:
+            st.error(f"Error checking models: {str(e)}")
+    
+    # Information about AWS Bedrock
+    with st.expander("About AWS Bedrock"):
+        st.markdown("""
+        **Amazon Bedrock** is a fully managed service that makes high-performing foundation models (FMs) from leading 
+        AI companies available through a unified API.
+        
+        Available models include:
+        - Claude (from Anthropic)
+        - Llama 3 (from Meta)
+        - Titan (from Amazon)
+        - Command (from Cohere)
+        
+        To use AWS Bedrock with this chat app:
+        1. Make sure you have AWS credentials configured in your .env file
+        2. Ensure your AWS account has access to the selected models
+        3. Choose the appropriate region where the models are available
+        
+        **Important Requirements:**
+        
+        1. **Request Model Access**
+           - Go to AWS Management Console → Amazon Bedrock → Model access
+           - Request access to the models you want to use
+           - Some models are approved immediately, others may require a waiting period
+        
+        2. **On-Demand vs. Provisioned Throughput**
+           - This app uses "on-demand throughput" (pay-as-you-go usage)
+           - Some newer models (like some Claude 3.7 variants) only work with "provisioned throughput"
+           - Provisioned throughput requires creating an inference profile in the AWS console
+           - Stick with models that support on-demand throughput unless you set up an inference profile
+        
+        3. **Model Versions Matter**
+           - Use the exact model ID that matches what's available in your AWS account
+           - Use the "Check Available Bedrock Models" button above to verify your available models
+        
+        For more information, visit [AWS Bedrock Documentation](https://docs.aws.amazon.com/bedrock/)
+        """)
 
 
 def render_ollama_settings(selected_model: str = ""):
