@@ -9,6 +9,7 @@ A Streamlit-based chat application that supports multiple LLM providers, includi
 - Temperature control
 - Conversation context maintenance
 - Responsive UI with Streamlit
+- Added RAG support 
 
 ## Setup and Installation
 
@@ -16,6 +17,25 @@ A Streamlit-based chat application that supports multiple LLM providers, includi
 
 - Python 3.12 or later
 - Poetry (for dependency management)
+
+We use the lib called vector-rag for RAG support. To install vector-rag, run the following commands: 
+
+```bash 
+git clone https://github.com/SpillwaveSolutions/vector-rag.git
+cd vector-rag
+poetry build
+
+
+# Navigate back to your chat application directory
+cd /path/to/your/chat
+
+# Install the local package
+poetry add /path/to/vector-rag
+
+# or if you want a specific version, use the following commands package
+
+poetry add /path/to/vector-rag/dist/vector_rag-1.2.12.tar.gz
+```
 
 ### Installation
 
