@@ -3,7 +3,16 @@
     "allow": [
       "Bash(poetry run:*)",
       "Bash(poetry install:*)",
-      "Bash(poetry lock:*)"
+      "Bash(poetry lock:*)",
+      "Bash(ls:*)",
+      "Bash(python:*)",
+      "Bash(poetry run python -c \"import sys; print('\\\\n'.join(sys.path))\")",
+      "Bash(PYTHONPATH=/Users/richardhightower/src/chat/src poetry run python -c \"import chat.ui.search_interface; print('Import successful')\")",
+      "Bash(find:*)",
+      "mcp__filesystem__search_files",
+      "mcp__filesystem__list_directory",
+      "mcp__filesystem__read_file",
+      "Bash(grep:*)"
     ],
     "deny": []
   }

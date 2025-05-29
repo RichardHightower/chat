@@ -77,6 +77,15 @@ def render_project_management():
 
     # Get list of projects
     projects = rag_service.list_projects()
+    
+    # If we have a project ID but no project object, try to restore it
+    if (st.session_state.get("current_rag_project_id") and 
+        not st.session_state.get("rag_project") and 
+        projects):
+        project_id = st.session_state.current_rag_project_id
+        selected_project = next((p for p in projects if p.id == project_id), None)
+        if selected_project:
+            st.session_state.rag_project = selected_project
 
     if projects:
         # Create a dropdown for project selection
@@ -91,6 +100,8 @@ def render_project_management():
             # Display project info
             selected_project = next((p for p in projects if p.id == project_id), None)
             if selected_project:
+                # Store both the project ID and the project object
+                st.session_state.rag_project = selected_project
                 st.success(f"Using project: {selected_project.name}")
                 if selected_project.description:
                     st.info(selected_project.description)
@@ -110,6 +121,7 @@ def render_project_management():
                     description=new_project_desc
                 )
                 st.session_state.current_rag_project_id = new_project.id
+                st.session_state.rag_project = new_project
                 st.success(f"Created project: {new_project.name} (ID: {new_project.id})")
                 st.rerun()
             except Exception as e:

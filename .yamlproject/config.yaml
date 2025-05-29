@@ -1,0 +1,39 @@
+# Default configuration for YAML Project
+include_pattern: null
+exclude_pattern: null
+temp_dir: null
+backup_dir: null
+supported_extensions:
+  .py: python
+  .sh: bash
+  .sql: sql
+  .toml: toml
+forbidden_dirs:
+  - __pycache__
+  - node_modules
+  - dist
+  - cdk.out
+  - env
+  - venv
+  - .venv
+  - .idea
+  - build
+  - .git
+  - .svn
+  - .hg
+  - .DS_Store
+  - .vs
+  - .vscode
+  - target
+  - bin
+  - obj
+  - out
+  - Debug
+  - Release
+  - tmp
+  - .tox
+  - .pytest_cache
+  - __MACOSX
+outfile: chat_project.yaml
+log_level: INFO
+max_file_size: 204800  # 200KB

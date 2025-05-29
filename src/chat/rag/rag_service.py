@@ -101,7 +101,8 @@ class RAGService:
                project_id: int,
                query: str,
                top_k: int = 5,
-               similarity_threshold: float = 0.7) -> List[ChunkResult]:
+               similarity_threshold: float = 0.7,
+               metadata_filter: Optional[Dict] = None) -> List[ChunkResult]:
         """Search for chunks matching the query.
 
         Args:
@@ -109,16 +110,18 @@ class RAGService:
             query: Search query text
             top_k: Number of results to return
             similarity_threshold: Minimum similarity score (0.0 to 1.0)
+            metadata_filter: Optional metadata filters (key-value pairs)
 
         Returns:
             List of chunk results, sorted by similarity score
         """
-        results = self.handler.search_chunks_by_text(
+        results = self.api.search_text(
             project_id=project_id,
             query_text=query,
             page=1,
             page_size=top_k,
-            similarity_threshold=similarity_threshold
+            similarity_threshold=similarity_threshold,
+            metadata_filter=metadata_filter
         )
 
         return results.results if results else []
@@ -177,3 +180,93 @@ class RAGService:
             List of files
         """
         return self.handler.list_files(project_id)
+    
+    def search_bm25(self,
+                    project_id: int,
+                    query: str,
+                    top_k: int = 10,
+                    rank_threshold: float = 0.0,
+                    metadata_filter: Optional[Dict] = None) -> ChunkResults:
+        """Search using BM25 (keyword/lexical) matching.
+        
+        Args:
+            project_id: ID of the project to search
+            query: Search query text
+            top_k: Number of results to return
+            rank_threshold: Minimum BM25 rank score
+            metadata_filter: Optional metadata filters (key-value pairs)
+            
+        Returns:
+            ChunkResults object with BM25-ranked results
+        """
+        return self.api.search_bm25(
+            project_id=project_id,
+            query_text=query,
+            page=1,
+            page_size=top_k,
+            rank_threshold=rank_threshold,
+            metadata_filter=metadata_filter
+        )
+    
+    def search_hybrid(self,
+                      project_id: int,
+                      query: str,
+                      top_k: int = 10,
+                      vector_weight: float = 0.5,
+                      bm25_weight: float = 0.5,
+                      similarity_threshold: float = 0.0,
+                      rank_threshold: float = 0.0,
+                      metadata_filter: Optional[Dict] = None) -> ChunkResults:
+        """Search using hybrid approach (vector + BM25).
+        
+        Args:
+            project_id: ID of the project to search
+            query: Search query text
+            top_k: Number of results to return
+            vector_weight: Weight for semantic similarity (0-1)
+            bm25_weight: Weight for BM25 score (0-1)
+            similarity_threshold: Minimum vector similarity score
+            rank_threshold: Minimum BM25 rank score
+            metadata_filter: Optional metadata filters (key-value pairs)
+            
+        Returns:
+            ChunkResults object with hybrid-scored results
+        """
+        return self.api.search_hybrid(
+            project_id=project_id,
+            query_text=query,
+            page=1,
+            page_size=top_k,
+            vector_weight=vector_weight,
+            bm25_weight=bm25_weight,
+            similarity_threshold=similarity_threshold,
+            rank_threshold=rank_threshold,
+            metadata_filter=metadata_filter
+        )
+    
+    def query_metadata(self,
+                       project_id: int,
+                       metadata_filter: Dict,
+                       query_text: Optional[str] = None,
+                       file_id: Optional[int] = None,
+                       top_k: int = 50) -> ChunkResults:
+        """Query chunks by metadata only (no semantic or BM25 scoring).
+        
+        Args:
+            project_id: ID of the project to search
+            metadata_filter: Dictionary of metadata filters (required)
+            query_text: Optional simple text search in content (uses ILIKE)
+            file_id: Optional file ID to limit search to specific file
+            top_k: Number of results to return (Note: query API doesn't support pagination)
+            
+        Returns:
+            ChunkResults object with metadata-filtered results
+        """
+        # Note: The query method doesn't support pagination, so we get all results
+        # and the API will handle any internal limits
+        return self.api.query(
+            project_id=project_id,
+            file_id=file_id,
+            query_text=query_text,
+            metadata_filter=metadata_filter
+        )
