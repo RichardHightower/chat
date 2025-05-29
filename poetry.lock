@@ -3432,14 +3432,13 @@ zstd = ["zstandard (>=0.18.0)"]
 
 [[package]]
 name = "vector-rag"
-version = "1.2.12"
+version = "3.0.0"
 description = "RAG (Retrieval-Augmented Generation) System"
 optional = false
-python-versions = ">=3.10,<3.13"
+python-versions = ">=3.10,<3.14"
 groups = ["main"]
-files = [
-    {file = "vector_rag-1.2.12.tar.gz", hash = "sha256:26eb30e98c10dc5ad2a609b02e5d920e158058e824b6c9679ab5ee7b80cd8902"},
-]
+files = []
+develop = false
 
 [package.dependencies]
 openai = ">=1.58.1,<2.0.0"
@@ -3449,8 +3448,8 @@ python-dotenv = ">=1.0.1,<2.0.0"
 sqlalchemy = ">=2.0.36,<3.0.0"
 
 [package.source]
-type = "file"
-url = "../vector-rag/dist/vector_rag-1.2.12.tar.gz"
+type = "directory"
+url = "../vector-rag"
 
 [[package]]
 name = "watchdog"
@@ -3638,4 +3637,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10,<3.13"
-content-hash = "3ea513db4e502ea95659bd2df40660f81d5d4b7869870c9df1949fcbbbf520bd"
+content-hash = "5c6c12d58b25372def714db240b8378a56afbf7244cbf4f7a6252b2ddf0b2509"

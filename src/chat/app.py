@@ -7,7 +7,13 @@ It uses Streamlit for the UI and supports multiple LLM providers.
 
 import streamlit as st
 import os
+import sys
 from dotenv import load_dotenv
+
+# Add src directory to Python path if not already there
+src_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+if src_path not in sys.path:
+    sys.path.insert(0, src_path)
 
 # Import utility modules
 from chat.util.logging_util import logger as llm_logger
@@ -70,7 +76,7 @@ def main():
     conversation_storage = get_conversation_storage()
 
     # Create tabs in the sidebar
-    sidebar_tabs = st.sidebar.tabs(["Chat Settings", "RAG"])
+    sidebar_tabs = st.sidebar.tabs(["Chat Settings", "RAG", "Search"])
 
     from chat.rag.torch_fix import apply_torch_fix
     apply_torch_fix()
@@ -101,6 +107,68 @@ def main():
         # Import and use the RAG sidebar
         from chat.ui.sidebar_rag import render_rag_sidebar
         render_rag_sidebar()
+    
+    # Render Search interface in the Search tab
+    with sidebar_tabs[2]:
+        # Debug information
+        has_rag_service = "rag_service" in st.session_state and st.session_state.rag_service is not None
+        has_rag_project = "rag_project" in st.session_state and st.session_state.rag_project is not None
+        has_project_id = "current_rag_project_id" in st.session_state and st.session_state.current_rag_project_id is not None
+        
+        # Show debug info
+        with st.expander("Debug Info", expanded=False):
+            st.write(f"RAG Service exists: {has_rag_service}")
+            st.write(f"RAG Project exists: {has_rag_project}")
+            st.write(f"Project ID exists: {has_project_id}")
+            if has_project_id:
+                st.write(f"Project ID: {st.session_state.current_rag_project_id}")
+            st.write("Session state keys:", list(st.session_state.keys()))
+        
+        if has_rag_service and has_project_id:
+            # Try to get the project if we only have the ID
+            if not has_rag_project and st.session_state.rag_service:
+                try:
+                    projects = st.session_state.rag_service.list_projects()
+                    project = next((p for p in projects if p.id == st.session_state.current_rag_project_id), None)
+                    if project:
+                        st.session_state.rag_project = project
+                        has_rag_project = True
+                except Exception as e:
+                    st.error(f"Error loading project: {str(e)}")
+        
+        if has_rag_service and has_rag_project:
+            try:
+                from chat.ui.search_interface import render_search_interface, render_search_statistics
+            except ImportError as e:
+                st.error(f"Failed to import search interface: {e}")
+                render_search_interface = None
+                render_search_statistics = None
+            
+            # Add a toggle to show search in main area
+            show_search_main = st.checkbox(
+                "Show search in main area",
+                value=st.session_state.get("show_search_main", False),
+                help="Toggle between chat and search interface in the main area"
+            )
+            st.session_state.show_search_main = show_search_main
+            
+            if show_search_main:
+                st.info("Search interface is now shown in the main area")
+            
+            # Show search statistics in sidebar
+            if render_search_statistics:
+                render_search_statistics(
+                    st.session_state.rag_service,
+                    st.session_state.rag_project.id
+                )
+        else:
+            st.warning("Please select a project in the RAG tab first")
+            if not has_rag_service:
+                st.error("RAG service is not initialized")
+            if not has_project_id:
+                st.info("No project ID found in session state")
+            if has_project_id and not has_rag_project:
+                st.info(f"Project ID {st.session_state.current_rag_project_id} exists but project object not loaded")
 
     # Initialize provider (using selections from first tab)
     llm_provider, error_message = initialize_provider(selected_provider, selected_model)
@@ -110,26 +178,40 @@ def main():
         st.error(error_message)
         st.sidebar.error(f"Provider failed: {error_message}")
 
-    # Initialize chat history
-    initialize_chat_history(selected_provider, selected_model)
+    # Check if we should show search interface or chat
+    if st.session_state.get("show_search_main", False) and st.session_state.get("rag_service") and st.session_state.get("rag_project"):
+        # Show search interface in main area
+        try:
+            from chat.ui.search_interface import render_search_interface
+            render_search_interface(
+                st.session_state.rag_service,
+                st.session_state.rag_project.id
+            )
+        except ImportError as e:
+            st.error(f"Failed to import search interface: {e}")
+            st.info("Falling back to chat interface")
+    else:
+        # Show chat interface (default)
+        # Initialize chat history
+        initialize_chat_history(selected_provider, selected_model)
 
-    # Initialize conversation
-    initialize_conversation_id()
-    conversation = get_conversation(conversation_storage)
+        # Initialize conversation
+        initialize_conversation_id()
+        conversation = get_conversation(conversation_storage)
 
-    # Display existing chat messages
-    display_chat_messages(st.session_state.messages)
+        # Display existing chat messages
+        display_chat_messages(st.session_state.messages)
 
-    # Handle user input
-    handle_user_input(
-        llm_provider=llm_provider,
-        conversation=conversation,
-        conversation_storage=conversation_storage,
-        selected_provider=selected_provider,
-        selected_model=selected_model,
-        temperature=temperature,
-        use_streaming=use_streaming
-    )
+        # Handle user input
+        handle_user_input(
+            llm_provider=llm_provider,
+            conversation=conversation,
+            conversation_storage=conversation_storage,
+            selected_provider=selected_provider,
+            selected_model=selected_model,
+            temperature=temperature,
+            use_streaming=use_streaming
+        )
 
 if __name__ == "__main__":
     main()

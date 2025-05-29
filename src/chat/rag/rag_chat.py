@@ -28,6 +28,36 @@ def get_rag_context_for_prompt(prompt: str) -> Optional[str]:
         return None
 
     llm_logger.info("Getting RAG context for prompt...")
+    
+    # First check if user has manually selected chunks from search interface
+    if st.session_state.get("selected_chunks"):
+        llm_logger.info("Using manually selected chunks from search interface")
+        context_parts = []
+        for i, chunk_data in enumerate(st.session_state.selected_chunks):
+            filename = chunk_data.get("file_name", "Unknown")
+            content = chunk_data.get("content", "")
+            context_parts.append(f"[Document {i + 1}: {filename}]\n{content}\n")
+        
+        context_text = "\n".join(context_parts)
+        
+        # Clear selected chunks after use
+        st.session_state.selected_chunks = []
+        
+        # Create enhanced prompt
+        enhanced_prompt = (
+            f"I'll provide you with some context information followed by a question. "
+            f"Please use this context to help answer the question accurately.\n\n"
+            f"CONTEXT:\n{context_text}\n\n"
+            f"QUESTION: {prompt}\n\n"
+            f"Please answer based on the provided context. If the context doesn't contain "
+            f"relevant information, you can rely on your general knowledge, but prioritize "
+            f"the context information when available. Include citations like [Document X] in your answer."
+        )
+        
+        llm_logger.info(f"Enhanced prompt with {len(st.session_state.get('selected_chunks', []))} manually selected chunks")
+        return enhanced_prompt
+    
+    # Otherwise, use automatic search
     # Check if a project is selected
     project_id = st.session_state.get("current_rag_project_id")
     if not project_id:
